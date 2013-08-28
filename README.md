@@ -28,6 +28,15 @@ Usage
     #     :area_code=>607, 
     #     :region=>"NY" }
 
+ASN Lookup Usage
+
+```ruby
+require 'geoip'
+db = GeoIP::ASN.new('/path/to/GeoIPASNum.dat')
+result = db.look_up('24.24.24.24')
+p result
+```
+
 There are arguments to database initializer.
 
   1. The first argument is the filename of the GeoIPCity.dat file 
