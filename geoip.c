@@ -37,6 +37,7 @@ static VALUE mGeoIP_Organization;
 static VALUE mGeoIP_ISP;
 static VALUE mGeoIP_NetSpeed;
 static VALUE mGeoIP_Domain;
+static VALUE mGeoIP_ASN;
 static VALUE rb_geoip_memory;
 static VALUE rb_geoip_filesystem;
 static VALUE rb_geoip_index;
@@ -107,7 +108,7 @@ static VALUE rb_geoip_database_new(VALUE mGeoIP_Database_Class, int argc, VALUE 
     check_cache = Qfalse;
   Check_Type(load_option, T_SYMBOL);
 
-  if(flag = check_load_option(load_option)) flag;
+  flag = check_load_option(load_option);
 
   if(RTEST(check_cache)) flag |= GEOIP_CHECK_CACHE;
 
@@ -121,7 +122,7 @@ static VALUE rb_geoip_database_new(VALUE mGeoIP_Database_Class, int argc, VALUE 
 }
 
 /* Generic, single-value look up method */
-static VALUE generic_single_value_lookup_response(char *key, char *value)
+static VALUE generic_single_value_lookup_response(const char *key, char *value)
 {
   VALUE result = rb_hash_new();
   if(value) {
@@ -145,11 +146,12 @@ VALUE rb_city_record_to_hash(GeoIPRecord *record)
   if(record->country_name)
     rb_hash_sset(hash, "country_name", encode_to_utf8_and_return_rb_str(record->country_name));
   if(record->region) {
+    const char *region_name;
     rb_hash_sset(hash, "region", encode_to_utf8_and_return_rb_str(record->region));
 
-    char *region_name = GeoIP_region_name_by_code(record->country_code, record->region);
+    region_name = GeoIP_region_name_by_code(record->country_code, record->region);
     if (region_name) {
-      rb_hash_sset(hash, "region_name", encode_to_utf8_and_return_rb_str(region_name));
+      rb_hash_sset(hash, "region_name", encode_to_utf8_and_return_rb_str((char *)region_name));
     }
   }
   if(record->city)
@@ -348,6 +350,19 @@ VALUE rb_geoip_domain_look_up(VALUE self, VALUE addr) {
   return generic_single_value_lookup_response("domain", GeoIP_name_by_addr(gi, StringValuePtr(addr)));
 }
 
+static VALUE rb_geoip_asn_new(int argc, VALUE *argv, VALUE self)
+{
+  return rb_geoip_database_new(mGeoIP_ASN, argc, argv, self);
+}
+
+VALUE rb_geoip_asn_look_up(VALUE self, VALUE addr)
+{
+  GeoIP *gi;
+  Check_Type(addr, T_STRING);
+  Data_Get_Struct(self, GeoIP, gi);
+  return generic_single_value_lookup_response("asn", GeoIP_name_by_addr(gi, StringValuePtr(addr)));
+}
+
 /* GeoIP *********************************************************************/
 
 /* Returns the numeric form of an IP address.
@@ -405,6 +420,10 @@ void Init_geoip()
   mGeoIP_Domain = rb_define_class_under(mGeoIP, "Domain", rb_cObject);
   rb_define_singleton_method(mGeoIP_Domain, "new",     rb_geoip_domain_new,     -1);
   rb_define_method(          mGeoIP_Domain, "look_up", rb_geoip_domain_look_up, 1);
+
+  mGeoIP_ASN = rb_define_class_under(mGeoIP, "ASN", rb_cObject);
+  rb_define_singleton_method(mGeoIP_ASN, "new", rb_geoip_asn_new, -1);
+  rb_define_method(mGeoIP_ASN, "look_up", rb_geoip_asn_look_up, 1);
 
   rb_define_singleton_method(mGeoIP, "addr_to_num", rb_geoip_addr_to_num, 1);
   rb_define_singleton_method(mGeoIP, "num_to_addr", rb_geoip_num_to_addr, 1);
